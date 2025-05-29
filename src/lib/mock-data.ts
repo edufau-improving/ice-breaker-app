@@ -1,3 +1,4 @@
+
 import type { User, Icebreaker, Entry, Comment } from './types';
 
 const MOCK_USERS_COUNT = 20;
@@ -15,7 +16,7 @@ function getRandomDate(start = new Date(2023, 0, 1), end = new Date()) {
   return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
 
-const samplePrompts = [
+export const samplePrompts = [
   { title: "Desk Snapshot", description: "Share a photo of your current workspace setup. What's your favorite item on your desk?" },
   { title: "Dream Vacation", description: "If you could teleport anywhere for a week, where would you go and why?" },
   { title: "Hidden Talent", description: "What's a surprising skill or talent you have that most people don't know about?" },
