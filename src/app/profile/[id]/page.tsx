@@ -5,9 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label'; // Added import
 import { mockUsers, mockEntries, getMockUserById } from '@/lib/mock-data';
 import type { User, Entry } from '@/lib/types';
-import { Mail, Briefcase, BarChart3, ThermometerSnowflake, ThermometerSun, ArrowLeft } from 'lucide-react';
+import { Mail, Briefcase, BarChart3, ThermometerSnowflake, ThermometerSun, ArrowLeft, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';

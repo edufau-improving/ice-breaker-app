@@ -3,13 +3,15 @@
 'use client'; // Needs to be client for potential client-side data fetching / state
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label'; // Added import
 import { currentMockUser, mockEntries } from '@/lib/mock-data'; // Using mock user for now
 import type { Entry } from '@/lib/types';
-import { Mail, Briefcase, BarChart3, ThermometerSnowflake, ThermometerSun } from 'lucide-react';
+import { Mail, Briefcase, BarChart3, ThermometerSnowflake, ThermometerSun, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 
 // Cannot use export const metadata on client component.
 // This page should have a title like "My Profile" set in a parent server component or layout if dynamic title is needed.
