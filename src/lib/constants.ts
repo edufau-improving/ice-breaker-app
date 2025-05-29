@@ -42,4 +42,4 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const APP_NAME = "Melt Zone";
+export const APP_NAME = "Ice breaker";

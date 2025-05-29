@@ -1,8 +1,9 @@
+
 import { IcebreakerCard } from '@/components/icebreaker/IcebreakerCard';
 import { mockIcebreakers, currentMockUser } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { IceCream2 } from 'lucide-react';
+import { IceCream2, MessageSquare } from 'lucide-react'; // Added MessageSquare import
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -25,7 +26,8 @@ const groupIcebreakersByMonth = (icebreakers: typeof mockIcebreakers) => {
 export default function FeedPage() {
   // Placeholder for fetching real data and infinite scroll
   const icebreakersByMonth = groupIcebreakersByMonth(mockIcebreakers);
-  const months = Object.keys(icebreakersByMonth); // Already sorted due to mock data generation, or sort explicitly
+  const months = Object.keys(icebreakersByMonth).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()); // Sort months, newest first
+
 
   return (
     <div className="relative min-h-screen">
@@ -74,3 +76,4 @@ export default function FeedPage() {
     </div>
   );
 }
+

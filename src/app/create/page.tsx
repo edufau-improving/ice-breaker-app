@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -11,21 +12,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarImage } from '@/components/ui/avatar'; // Added import
 import { useToast } from '@/hooks/use-toast';
-import { currentMockUser, samplePrompts } from '@/lib/mock-data';
+import { 
+  currentMockUser, 
+  mockIcebreakers, // Import mockIcebreakers for the select dropdown
+  getMockIcebreakerById, 
+  addIcebreakerWithFirstEntry, 
+  addEntryToIcebreaker 
+} from '@/lib/mock-data';
 import { IceCream2, UploadCloud } from 'lucide-react';
-import type { Metadata } from 'next';
+import type { Icebreaker, Entry } from '@/lib/types'; // Import types
 
 // Cannot use export const metadata on client component. 
 // This page should have a title like "Create Icebreaker" set in a parent server component or layout if dynamic title is needed.
 
 const formSchema = z.object({
   promptOption: z.enum(['existing', 'new']),
-  existingPrompt: z.string().optional(),
+  existingPrompt: z.string().optional(), // This will now be an Icebreaker ID
   newPromptTitle: z.string().optional(),
   newPromptDescription: z.string().optional(),
   entryText: z.string().min(1, 'Your entry text cannot be empty.'),
-  imageFile: z.instanceof(File).optional(),
+  imageFile: z.instanceof(File).optional().nullable(), // Allow null
   topicType: z.enum(['text', 'photo', 'mixed']).default('mixed'),
 }).superRefine((data, ctx) => {
   if (data.promptOption === 'existing' && !data.existingPrompt) {
@@ -59,7 +67,7 @@ export default function CreateIcebreakerPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [promptOption, setPromptOption] = useState<'existing' | 'new'>('existing');
+  // const [promptOption, setPromptOption] = useState<'existing' | 'new'>('existing'); // This state is managed by react-hook-form now
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
@@ -67,7 +75,8 @@ export default function CreateIcebreakerPage() {
     defaultValues: {
       promptOption: 'existing',
       entryText: '',
-      topicType: 'mixed'
+      topicType: 'mixed',
+      imageFile: null,
     },
   });
 
@@ -81,32 +90,119 @@ export default function CreateIcebreakerPage() {
       };
       reader.readAsDataURL(file);
     } else {
-      form.setValue('imageFile', undefined);
+      form.setValue('imageFile', null);
       setImagePreview(null);
     }
   };
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
-    console.log('Form data:', data);
-
-    // Placeholder for actual submission logic (e.g., to Firebase)
-    // This would involve:
-    // 1. Uploading image to Firebase Storage if present.
-    // 2. Creating new icebreaker document in Firestore.
-    // 3. Creating new entry document in Firestore.
-
-    setTimeout(() => {
-      toast({
-        title: 'Icebreaker Created!',
-        description: 'Your new icebreaker has been posted.',
-      });
+    
+    if (!currentMockUser) {
+      toast({ variant: 'destructive', title: 'Error', description: 'User not found. Please log in.' });
       setIsLoading(false);
-      router.push('/'); // Redirect to feed
-    }, 1500);
+      return;
+    }
+
+    let imageUrl: string | undefined = undefined;
+    if (data.imageFile) {
+      try {
+        imageUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(data.imageFile as File);
+        });
+      } catch (error) {
+        console.error("Error reading image file:", error);
+        toast({ variant: 'destructive', title: 'Image Upload Error', description: 'Could not process the image.' });
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    const entryAuthor = currentMockUser;
+    const entryCreatedAt = new Date().toISOString();
+
+    if (data.promptOption === 'new') {
+      if (!data.newPromptTitle || !data.newPromptDescription) {
+        toast({ variant: 'destructive', title: 'Error', description: 'New prompt title and description are required.' });
+        setIsLoading(false);
+        return;
+      }
+      const newIcebreakerId = `icebreaker-${Date.now()}`;
+      const newEntryId = `${newIcebreakerId}-entry-1`;
+
+      const newEntryForNewIcebreaker: Entry = {
+        id: newEntryId,
+        icebreakerId: newIcebreakerId,
+        authorId: entryAuthor.id,
+        author: entryAuthor,
+        text: data.entryText,
+        contentUrl: imageUrl,
+        createdAt: entryCreatedAt,
+        likeCount: 0,
+        comments: [],
+      };
+
+      const newIcebreaker: Icebreaker = {
+        id: newIcebreakerId,
+        title: data.newPromptTitle,
+        description: data.newPromptDescription,
+        topicType: data.topicType, // The new prompt's type is determined by the first entry's type
+        authorId: entryAuthor.id,
+        author: entryAuthor,
+        createdAt: new Date().toISOString(),
+        interactionCount: 0, 
+        entries: [newEntryForNewIcebreaker], // Will be set by addIcebreakerWithFirstEntry
+      };
+      
+      addIcebreakerWithFirstEntry(newIcebreaker, newEntryForNewIcebreaker);
+
+      toast({
+        title: 'New Icebreaker Posted!',
+        description: `"${newIcebreaker.title}" is live.`,
+      });
+
+    } else if (data.promptOption === 'existing' && data.existingPrompt) {
+      const targetIcebreaker = getMockIcebreakerById(data.existingPrompt); // existingPrompt is an ID
+
+      if (!targetIcebreaker) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Selected prompt not found.' });
+        setIsLoading(false);
+        return;
+      }
+
+      const newEntryId = `${targetIcebreaker.id}-entry-${Date.now()}`;
+      const newEntryForExistingIcebreaker: Entry = {
+        id: newEntryId,
+        icebreakerId: targetIcebreaker.id,
+        authorId: entryAuthor.id,
+        author: entryAuthor,
+        text: data.entryText,
+        contentUrl: imageUrl,
+        createdAt: entryCreatedAt,
+        likeCount: 0,
+        comments: [],
+      };
+
+      addEntryToIcebreaker(targetIcebreaker.id, newEntryForExistingIcebreaker);
+
+      toast({
+        title: 'Entry Posted!',
+        description: `Your entry for "${targetIcebreaker.title}" is live.`,
+      });
+    }
+
+    setIsLoading(false);
+    form.reset(); 
+    setImagePreview(null);
+    router.push('/'); 
+    router.refresh(); // Important to reflect changes from mock data
   };
   
   const selectedPromptOption = form.watch('promptOption');
+  const selectedTopicType = form.watch('topicType');
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -124,9 +220,8 @@ export default function CreateIcebreakerPage() {
             <div className="space-y-2">
               <Label>Prompt</Label>
               <Select
-                defaultValue="existing"
+                value={selectedPromptOption} // Controlled component
                 onValueChange={(value: 'existing' | 'new') => {
-                  setPromptOption(value);
                   form.setValue('promptOption', value);
                 }}
               >
@@ -143,13 +238,16 @@ export default function CreateIcebreakerPage() {
             {selectedPromptOption === 'existing' && (
               <div className="space-y-2">
                 <Label htmlFor="existingPrompt">Select Prompt</Label>
-                <Select {...form.register('existingPrompt')} onValueChange={(value) => form.setValue('existingPrompt', value)}>
+                <Select 
+                  value={form.watch('existingPrompt')}
+                  onValueChange={(value) => form.setValue('existingPrompt', value)}
+                >
                   <SelectTrigger id="existingPrompt">
                     <SelectValue placeholder="Choose from available prompts..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {samplePrompts.map(p => (
-                      <SelectItem key={p.title} value={p.title}>{p.title} - <em className="text-xs text-muted-foreground">{p.description.substring(0,30)}...</em></SelectItem>
+                    {mockIcebreakers.map(ib => (
+                      <SelectItem key={ib.id} value={ib.id}>{ib.title} - <em className="text-xs text-muted-foreground">{ib.description.substring(0,30)}...</em></SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -172,10 +270,13 @@ export default function CreateIcebreakerPage() {
               </div>
             )}
             
-            {/* Topic Type */}
+            {/* Topic Type (for the entry, or new prompt type) */}
              <div className="space-y-2">
-                <Label htmlFor="topicType">Topic Type (for your entry)</Label>
-                <Select {...form.register('topicType')} onValueChange={(value: 'text' | 'photo' | 'mixed') => form.setValue('topicType', value)} defaultValue="mixed">
+                <Label htmlFor="topicType">Entry Type {selectedPromptOption === 'new' && '(this will also be the new prompt type)'}</Label>
+                <Select 
+                  value={selectedTopicType}
+                  onValueChange={(value: 'text' | 'photo' | 'mixed') => form.setValue('topicType', value)}
+                >
                   <SelectTrigger id="topicType">
                     <SelectValue placeholder="Select entry type" />
                   </SelectTrigger>
@@ -201,20 +302,20 @@ export default function CreateIcebreakerPage() {
             </div>
 
             {/* Image Upload */}
-            {(form.getValues('topicType') === 'photo' || form.getValues('topicType') === 'mixed') && (
+            {(selectedTopicType === 'photo' || selectedTopicType === 'mixed') && (
             <div className="space-y-2">
-              <Label htmlFor="imageFile">Upload Image (Optional)</Label>
+              <Label htmlFor="imageFile">Upload Image (Optional if 'mixed' or 'text')</Label>
               <div className="flex items-center space-x-2">
-                <Input
-                  id="imageFile"
+                <Button type="button" variant="outline" onClick={() => document.getElementById('imageFileInput')?.click()}>
+                  <UploadCloud className="mr-2 h-4 w-4" /> Choose Image
+                </Button>
+                 <Input
+                  id="imageFileInput" // Changed ID to avoid conflict with label's htmlFor
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
-                  className="hidden"
+                  className="hidden" // Keep it hidden, triggered by button
                 />
-                <Button type="button" variant="outline" onClick={() => document.getElementById('imageFile')?.click()}>
-                  <UploadCloud className="mr-2 h-4 w-4" /> Choose Image
-                </Button>
                 {imagePreview && <Avatar><AvatarImage src={imagePreview} alt="Preview" className="h-10 w-10 rounded-md object-cover" /></Avatar>}
               </div>
               {form.formState.errors.imageFile && <p className="text-sm text-destructive">{form.formState.errors.imageFile.message}</p>}
@@ -233,3 +334,4 @@ export default function CreateIcebreakerPage() {
     </div>
   );
 }
+

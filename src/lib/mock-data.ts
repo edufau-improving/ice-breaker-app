@@ -82,7 +82,11 @@ for (let i = 0; i < MOCK_ICEBREAKERS_COUNT; i++) {
       likeCount: getRandomInt(0, 50),
       comments: [],
     };
-    if (entry.contentUrl) entry.text = `Check out this image! ${entry.text || ''}`;
+    if (entry.contentUrl && !entry.text) {
+      entry.text = `Check out this image for "${icebreaker.title}"!`;
+    } else if (entry.contentUrl && entry.text) {
+      entry.text = `Check out this image! ${entry.text}`;
+    }
 
 
     const numComments = getRandomInt(MOCK_COMMENTS_PER_ENTRY_MIN, MOCK_COMMENTS_PER_ENTRY_MAX);
@@ -119,3 +123,38 @@ export const getMockUserById = (id: string): User | undefined => mockUsers.find(
 
 // Placeholder for current user (e.g. first admin or a random user)
 export const currentMockUser = mockUsers.find(u => u.role === 'admin') || mockUsers[0];
+
+
+// New helper functions
+export const getMockIcebreakerById = (id: string): Icebreaker | undefined => mockIcebreakers.find(ib => ib.id === id);
+
+export function addIcebreakerWithFirstEntry(icebreaker: Icebreaker, firstEntry: Entry) {
+  // Ensure IDs are linked
+  firstEntry.icebreakerId = icebreaker.id;
+  icebreaker.entries = [firstEntry];
+  icebreaker.interactionCount = firstEntry.likeCount + firstEntry.comments.length; // Initialize interaction count
+
+  mockIcebreakers.unshift(icebreaker); // Add to the beginning (most recent)
+  mockEntries.push(firstEntry);
+
+  // If you want to strictly maintain sort order after every addition:
+  // mockIcebreakers.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function addEntryToIcebreaker(icebreakerId: string, entry: Entry) {
+  const icebreaker = getMockIcebreakerById(icebreakerId);
+  if (icebreaker) {
+    entry.icebreakerId = icebreakerId; // Ensure linked
+    
+    icebreaker.entries.unshift(entry); // Add to beginning of specific icebreaker's entries
+    // To strictly maintain sort order:
+    // icebreaker.entries.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    mockEntries.push(entry);
+    
+    // Update interaction count for the parent icebreaker
+    icebreaker.interactionCount += entry.likeCount + entry.comments.length;
+  } else {
+    console.warn(`Tried to add entry to non-existent icebreaker ID: ${icebreakerId}`);
+  }
+}
