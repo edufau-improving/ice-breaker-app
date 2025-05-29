@@ -1,3 +1,5 @@
+'use client';
+
 import type { Icebreaker, Entry as EntryType, User } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -80,8 +82,8 @@ export function IcebreakerCard({ icebreaker }: IcebreakerCardProps) {
                 <Image
                   src={primaryEntry.contentUrl}
                   alt={icebreaker.title}
-                  layout="fill"
-                  objectFit="cover"
+                  fill // Changed from layout="fill"
+                  style={{ objectFit: 'cover' }} // Changed from objectFit="cover"
                   data-ai-hint="team building"
                 />
               </div>
